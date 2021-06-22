@@ -3,7 +3,7 @@ sudo: required
 services:
   - docker
 
-dist: bionic
+dist: focal
 
 language: ruby
 rvm:
@@ -14,6 +14,8 @@ branches:
   - master
 
 before_install:
+  #Log in to the Docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   - docker pull mongo:3.6
   - docker pull redis
   - docker run -d -p 127.0.0.1:27017:27017 mongo:3.6
@@ -28,12 +30,13 @@ script:
   - bundle exec rspec spec
 
 after_success:
-  #Log in to the Docker CLI
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  #Build image based on New Relic CLI
+  - docker build -t cenitio/backend:newrelic-${TRAVIS_COMMIT::7} ./docker/newrelic
+  - docker build -t cenitio/frontend:newrelic-${TRAVIS_COMMIT::7}  --build-arg COMMIT=${TRAVIS_COMMIT::7} ./docker/newrelic/ui
 
-  - docker build -t cenitgroup/cenitio:latest ./docker/cenit
-  - docker push cenitgroup/cenitio:latest
+  - docker build -t cenitio/backend:ubuntu-${TRAVIS_COMMIT::7} -t cenitio/backend:latest ./docker/ubuntu
+  - docker build -t cenitio/frontend:ubuntu-${TRAVIS_COMMIT::7} -t cenitio/frontend:latest --build-arg COMMIT=${TRAVIS_COMMIT::7} ./docker/ubuntu/ui
 
-  - docker build -t cenitgroup/cenitio:frontend ./docker/cenit_web
-  - docker push cenitgroup/cenitio:frontend
-  
+  #Pushing containers
+  - docker push --all-tags cenitio/backend
+  - docker push --all-tags cenitio/frontend
